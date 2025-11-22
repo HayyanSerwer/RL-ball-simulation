@@ -87,19 +87,52 @@ class AvoidBallEnv():
                                      self.ball_radius * 2)
 
         self.ball_velocity = [5, 4]
-        self.rectangles = [FloatingRect() for _ in range(30)]
+        self.rectangles = [FloatingRect() for _ in range(10)]
         self.score = 0
         self.done = False
 
         return self._get_state()
 
     def _get_state(self):
-        return np.array([
-            self.ball_rect.centerx / WIDTH,
-            self.ball_rect.centery / HEIGHT,
-            self.ball_velocity[0] / 10,
-            self.ball_velocity[1] / 10,
-        ], dtype=np.float32)
+        # --- Ball info ---
+        bx = self.ball_rect.centerx
+        by = self.ball_rect.centery
+        bvx = self.ball_velocity[0]
+        bvy = self.ball_velocity[1]
+
+        state = [
+            bx / WIDTH,
+            by / HEIGHT,
+            bvx / 10,
+            bvy / 10,
+        ]
+
+        # --- Collect (distance, rect) for sorting ---
+        rect_info = []
+        for rect in self.rectangles:
+            dx = rect.x - bx
+            dy = rect.y - by
+            dist = math.sqrt(dx*dx + dy*dy)
+            rect_info.append((dist, rect))
+
+        # Sort by nearest
+        rect_info.sort(key=lambda x: x[0])
+
+        # --- Add the 10 rectangles (they are already 10, but still sorted) ---
+        MAX_SPEED = 5  # max rect velocity for normalization
+
+        for dist, rect in rect_info:
+            # Normalize distances relative to circle radius
+            dx = (rect.x - bx) / CIRCLE_RADIUS
+            dy = (rect.y - by) / CIRCLE_RADIUS
+
+            # Normalize velocities
+            dvx = rect.vx / MAX_SPEED
+            dvy = rect.vy / MAX_SPEED
+
+            state.extend([dx, dy, dvx, dvy])
+
+        return np.array(state, dtype=np.float32)
 
     def step(self, action):
         if self.done:
@@ -170,7 +203,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    action = random.randint(0, 4)   # actions 0–4
+    action = random.randint(0, 4)
     state, reward, done, info = env.step(action)
     env.render()
 
