@@ -19,7 +19,7 @@ CIRCLE_RADIUS = 200
 ball_radius = 15
 ball_rect = pygame.Rect(WIDTH // 2 - ball_radius, HEIGHT // 2 - 100 - ball_radius,
                         ball_radius * 2, ball_radius * 2)
-ball_velocity = [5, 4]
+ball_velocity = [10, 10]
 
 
 score = 0
@@ -107,7 +107,7 @@ class AvoidBallEnv():
             bvy / 10,
         ]
 
-        # --- Collect (distance, rect) for sorting ---
+
         rect_info = []
         for rect in self.rectangles:
             dx = rect.x - bx
@@ -118,11 +118,11 @@ class AvoidBallEnv():
         # Sort by nearest
         rect_info.sort(key=lambda x: x[0])
 
-        # --- Add the 10 rectangles (they are already 10, but still sorted) ---
-        MAX_SPEED = 5  # max rect velocity for normalization
+
+        MAX_SPEED = 3  # max rect velocity for normalization
 
         for dist, rect in rect_info:
-            # Normalize distances relative to circle radius
+
             dx = (rect.x - bx) / CIRCLE_RADIUS
             dy = (rect.y - by) / CIRCLE_RADIUS
 
@@ -145,6 +145,10 @@ class AvoidBallEnv():
         if action == 4: self.ball_velocity[1] += 1
 
         # Move ball
+        MAX_VEL = 15
+        self.ball_velocity[0] = float(np.clip(self.ball_velocity[0], -MAX_VEL, MAX_VEL))
+        self.ball_velocity[1] = float(np.clip(self.ball_velocity[1], -MAX_VEL, MAX_VEL))
+
         self.ball_rect.x += self.ball_velocity[0]
         self.ball_rect.y += self.ball_velocity[1]
 
@@ -168,14 +172,14 @@ class AvoidBallEnv():
             self.ball_velocity[0] *= 0.98
             self.ball_velocity[1] *= 0.98
 
-        # Update rectangles
+
         for rect in self.rectangles:
             rect.update()
             if rect.collides_with_ball(self.ball_rect):
                 self.done = True
-                return self._get_state(), -10, True, {}
+                return self._get_state(), -20, True, {}
 
-        return self._get_state(), 0.1, False, {}
+        return self._get_state(), 1, False, {}
 
     def render(self):
         self.screen.fill(BLACK)
@@ -193,22 +197,5 @@ class AvoidBallEnv():
         pygame.quit()
 
 
-env = AvoidBallEnv()
 
-state = env.reset()
-running = True
 
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-    action = random.randint(0, 4)
-    state, reward, done, info = env.step(action)
-    env.render()
-
-    if done:
-        print("Collision! Restarting.")
-        state = env.reset()
-
-env.close()
