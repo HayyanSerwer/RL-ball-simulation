@@ -146,19 +146,19 @@ class AvoidBallEnv():
         if self.done:
             return self._get_state(), 0, True, {}
 
-        # --- APPLY ACTION ---
-        ACCEL = 1.0  # lower for smoother control
-        MAX_VEL = 7  # lower max velocity
-        MOVE_STEP = 8  # adjust as needed
+
+        ACCEL = 1.0
+        MAX_VEL = 7
+        MOVE_STEP = 8
 
         # Direct movement
-        if action == 1:  # RIGHT
+        if action == 1:
             self.ball_rect.x += MOVE_STEP
-        elif action == 2:  # LEFT
+        elif action == 2:
             self.ball_rect.x -= MOVE_STEP
-        elif action == 3:  # DOWN
+        elif action == 3:
             self.ball_rect.y += MOVE_STEP
-        elif action == 4:  # UP
+        elif action == 4:
             self.ball_rect.y -= MOVE_STEP
 
         dx = self.ball_rect.centerx - CIRCLE_CENTER[0]
@@ -173,7 +173,7 @@ class AvoidBallEnv():
             self.ball_rect.x -= int(nx * overlap)
             self.ball_rect.y -= int(ny * overlap)
 
-        # --- UPDATE RECTANGLES & COLLISION CHECK ---
+
         min_distance = float('inf')
         collision = False
         for rect in self.rectangles:
@@ -202,11 +202,10 @@ class AvoidBallEnv():
         if min_distance < 40:  # danger zone
             reward -= (40 - min_distance) * 0.02  # small shaping penalty
 
-        # optional: tiny penalty for moving outside center (discourage hugging wall)
+        # might remove 
         dx_c = self.ball_rect.centerx - CIRCLE_CENTER[0]
         dy_c = self.ball_rect.centery - CIRCLE_CENTER[1]
         distance_to_center = math.hypot(dx_c, dy_c)
-        # reward bonus for staying more central (optional)
         reward += (CIRCLE_RADIUS - distance_to_center) / CIRCLE_RADIUS * 0.1
 
         return self._get_state(), reward, self.done, {}
