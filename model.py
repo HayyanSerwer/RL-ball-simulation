@@ -10,11 +10,12 @@ class Linear_QNet(nn.Module):
         super().__init__()
         # Basically a feed forward neural network with 1 hidden layer
         self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
-
+        self.linear2 = nn.Linear(hidden_size, hidden_size // 2)
+        self.linear3 = nn.Linear(hidden_size // 2, output_size)
     def forward(self, x):
         x = F.relu(self.linear1(x))
-        x = self.linear2(x)  # No activation function needed for the output layer
+        x = F.relu(self.linear2(x))
+        x = self.linear3(x)        # No activation function needed for the output layer
         return x
 
     def save(self, file_name='model.pth'):
@@ -27,12 +28,14 @@ class Linear_QNet(nn.Module):
 
 
 class QTrainer:
-    def __init__(self, model, lr, gamma):
+    def __init__(self, model, target_model, lr, gamma):
         self.lr = lr
         self.gamma = gamma
         self.model = model
+        self.target_model = target_model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+
 
     def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(np.array(state), dtype=torch.float)
@@ -52,10 +55,16 @@ class QTrainer:
 
         target = pred.clone()
         for idx in range(len(done)):
-            Q_new = reward[idx]
             if not done[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
 
+                next_Q_online = self.model(next_state[idx])
+                best_action_from_online = torch.argmax(next_Q_online)
+
+                Q_new = reward[idx] + self.gamma * self.target_model(next_state[idx])[best_action_from_online]
+            else:
+                Q_new = reward[idx]
+
+            # Update the Q value for the action that was taken in the original step
             target[idx][action[idx]] = Q_new
 
         # Applying r + gamma * max(next_predicted Q value)
@@ -63,3 +72,6 @@ class QTrainer:
         loss = self.criterion(target, pred)
         loss.backward()
         self.optimizer.step()
+
+    def update_target(self):
+        self.target_model.load_state_dict(self.model.state_dict())
